@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: veo3-webhook
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: KIE_API_KEY
+        value: ""
+      - key: KIE_WEBHOOK_SECRET
+        value: ""
