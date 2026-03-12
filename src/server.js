@@ -6,7 +6,9 @@ dotenv.config();
 
 const PORT = process.env.PORT || 8787;
 const WEBHOOK_SECRET = process.env.KIE_WEBHOOK_SECRET || '';
-const ACCEPT_UNVERIFIED = process.env.ACCEPT_UNVERIFIED === 'true';
+const ACCEPT_UNVERIFIED = process.env.ACCEPT_UNVERIFIED
+  ? process.env.ACCEPT_UNVERIFIED === 'true'
+  : true;
 
 let lastWebhook = null;
 
