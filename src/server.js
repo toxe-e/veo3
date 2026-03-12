@@ -6,6 +6,7 @@ dotenv.config();
 
 const PORT = process.env.PORT || 8787;
 const WEBHOOK_SECRET = process.env.KIE_WEBHOOK_SECRET || '';
+const ACCEPT_UNVERIFIED = process.env.ACCEPT_UNVERIFIED === 'true';
 
 let lastWebhook = null;
 
@@ -40,14 +41,18 @@ function verifySignature(req) {
     Buffer.from(expected)
   );
 
-  return { valid: isValid, reason: isValid ? 'ok' : 'mismatch' };
+  return { valid: isValid, reason: isValid ? 'ok' : 'mismatch', signature };
 }
 
 app.post('/veo3/callback', (req, res) => {
-  const { valid, reason } = verifySignature(req);
-  if (!valid) {
+  const { valid, reason, signature } = verifySignature(req);
+  if (!valid && !ACCEPT_UNVERIFIED) {
     console.warn('[VEO3][WEBHOOK] invalid signature:', reason);
     return res.status(401).json({ ok: false, reason: 'invalid-signature' });
+  }
+
+  if (!valid && ACCEPT_UNVERIFIED) {
+    console.warn('[VEO3][WEBHOOK] invalid signature but ACCEPT_UNVERIFIED=true:', reason);
   }
 
   const payload = req.body ?? {};
@@ -55,10 +60,17 @@ app.post('/veo3/callback', (req, res) => {
 
   lastWebhook = {
     receivedAt: new Date().toISOString(),
+    verified: valid,
+    reason,
+    signature,
+    headers: {
+      'content-type': req.get('content-type') || null,
+      'user-agent': req.get('user-agent') || null
+    },
     payload
   };
 
-  res.json({ ok: true });
+  res.json({ ok: true, verified: valid });
 });
 
 app.get('/veo3/last-callback', (_req, res) => {
