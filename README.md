@@ -4,9 +4,10 @@
 
 ## Структура
 
-- `src/server.js` — Express-приложение с эндпоинтом `/veo3/callback` и health-check `/healthz`.
+- `src/server.js` — Express-приложение с эндпоинтом `/veo3/callback`, `/veo3/last-callback` и health-check `/healthz`.
 - `.env.example` — список переменных окружения.
 - `scripts/sample-generate.sh` — вспомогательный скрипт, который шлёт тестовый `POST /veo/generate` с указанным `callBackUrl`.
+- `scripts/fetch-record.js` — утилита для запроса `GET /veo/record-info?taskId=...` (fallback, если webhook не приходит).
 - `render.yaml` — blueprint для быстрой публикации на Render.
 
 ## Быстрый старт локально
@@ -19,6 +20,7 @@
    - `PORT` — локальный порт (по умолчанию `8787`).
    - `KIE_API_KEY` — ключ из личного кабинета kie.ai.
    - `KIE_WEBHOOK_SECRET` — строка для HMAC-подписи (алгоритм SHA-256, заголовок `x-kie-signature`, формат `sha256=<hex>`).
+   - `ACCEPT_UNVERIFIED` — `true/false`; пока KIE не присылает подпись в ожидаемом виде, стоит оставить `true`, чтобы видеть payload.
    - `CALLBACK_URL` — внешний адрес вебхука (нужен только скрипту `sample-generate.sh`).
 3. Установить зависимости и запустить сервер:
    ```bash
@@ -36,13 +38,22 @@
    ```
    Скрипт читает ключ и `CALLBACK_URL` из `.env` и отправляет task в `veo3_fast`.
 
+## Fallback: подтянуть результат вручную
+
+Пока KIE не присылает webhook, можно забрать результат напрямую через `record-info`:
+```bash
+node scripts/fetch-record.js <taskId>
+```
+Скрипт использует `KIE_API_KEY` из `.env` и выводит весь JSON (с `resultUrls`).
+
 ## Деплой на Render
 
 1. В корне проекта лежит `render.yaml` с настройками web‑сервиса (Node runtime, build/start команды `npm install` / `npm start`).
 2. Импортируем репозиторий в Render (через GitHub/GitLab) и выбираем **Blueprint** деплой.
-3. В разделе Environment Variables задаём:
-   - `KIE_API_KEY` — `fd0f5cb25c69888bf01b02bd0b7454d2` (можно хранить как Secret).
-   - `KIE_WEBHOOK_SECRET` — `veo3_hook_2026`.
+3. В разделе Environment переменных задаём:
+   - `KIE_API_KEY`
+   - `KIE_WEBHOOK_SECRET`
+   - (опционально) `ACCEPT_UNVERIFIED=false`, когда подпись от KIE станет корректной.
 4. Render сам пробросит переменную `PORT`; приложение читает её автоматически (иначе упадёт на дефолт `8787`).
 5. После раскатки получаем URL вида `https://veo3-webhook.onrender.com/veo3/callback` и используем его как `callBackUrl` в запросах к kie.ai.
 
@@ -50,4 +61,4 @@
 
 - Подключить сторедж (файл/БД) для сохранения payload’ов.
 - Добавить очередь скачивания видео (GET `/api/v1/veo/get-1080p-video`).
-- Сверить текущий HMAC с официальной спецификацией `/common-api/webhook-verification` (пока стоит базовый плейсхолдер).
+- Сверить текущий HMAC с официальной спецификацией `/common-api/webhook-verification` (пока стоит режим `ACCEPT_UNVERIFIED=true`).
