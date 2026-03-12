@@ -7,6 +7,8 @@ dotenv.config();
 const PORT = process.env.PORT || 8787;
 const WEBHOOK_SECRET = process.env.KIE_WEBHOOK_SECRET || '';
 
+let lastWebhook = null;
+
 const app = express();
 app.use(
   express.json({
@@ -51,9 +53,20 @@ app.post('/veo3/callback', (req, res) => {
   const payload = req.body ?? {};
   console.log('[VEO3][WEBHOOK] task update', JSON.stringify(payload, null, 2));
 
-  // TODO: persist payload (DB, file, queue) so downstream jobs can fetch the assets.
+  lastWebhook = {
+    receivedAt: new Date().toISOString(),
+    payload
+  };
 
   res.json({ ok: true });
+});
+
+app.get('/veo3/last-callback', (_req, res) => {
+  if (!lastWebhook) {
+    return res.status(204).send();
+  }
+
+  res.json(lastWebhook);
 });
 
 app.get('/healthz', (_req, res) => {
